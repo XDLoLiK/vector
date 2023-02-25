@@ -5,17 +5,17 @@ namespace stdlike {
 
 template <typename T>
 struct remove_reference {
-    typedef T type;
+    using type = T;
 };
 
 template <typename T>
 struct remove_reference<T&> {
-    typedef T type;
+    using type = T;
 };
 
 template <typename T>
 struct remove_reference<T&&> {
-    typedef T type;
+    using type = T;
 };
 
 }  // namespace stdlike

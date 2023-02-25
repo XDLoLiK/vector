@@ -1,17 +1,12 @@
 #ifndef STDLIKE_VECTOR_HPP
 #define STDLIKE_VECTOR_HPP
 
-#include <cstddef>
-#include <cstdint>
 #include <iostream>
 #include <cinttypes>
 #include <cassert>
-#include <cstring>
 
-#include <ostream>
 #include <stdlike/move.hpp>
 #include <stdlike/forward.hpp>
-#include <vector>
 
 namespace stdlike {
 
@@ -312,17 +307,13 @@ public:
     }
 
     explicit Vector(size_t init_size, bool value = false)
-        : size_(init_size)
-        , capacity_(RoundUpToEightMultiple(init_size))
-        , data_(new uint8_t[BitsToBytes(capacity_)]()) {
+        : size_(init_size), capacity_(RoundUpToEightMultiple(init_size)), data_(new uint8_t[BitsToBytes(capacity_)]()) {
 
         Initialize(data_, 0, size_, value);
     }
 
     Vector(const Vector<bool>& other)
-        : size_(other.Size())
-        , capacity_(other.Capacity())
-        , data_(new uint8_t[BitsToBytes(other.Capacity())]()) {
+        : size_(other.Size()), capacity_(other.Capacity()), data_(new uint8_t[BitsToBytes(other.Capacity())]()) {
 
         Copy(data_, 0, other.Size(), other.Data());
     }
@@ -541,8 +532,8 @@ private:
     }
 
 private:
-    size_t size_ = 0;           /* in bits */
-    size_t capacity_ = 0;       /* in bits, always == 0 (mod 8), at least 8 */
+    size_t size_ = 0;     /* in bits */
+    size_t capacity_ = 0; /* in bits, always == 0 (mod 8), at least 8 */
     uint8_t* data_ = nullptr;
 };
 
