@@ -1,14 +1,17 @@
 #ifndef STDLIKE_VECTOR_HPP
 #define STDLIKE_VECTOR_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <cinttypes>
 #include <cassert>
 #include <cstring>
 
+#include <ostream>
 #include <stdlike/move.hpp>
 #include <stdlike/forward.hpp>
+#include <vector>
 
 namespace stdlike {
 
@@ -20,7 +23,7 @@ public:
 
     explicit Vector(size_t init_size, const Type& value = Type())
         : size_(init_size)
-        , capacity_(ClosestPowerOfTwo(init_size))
+        , capacity_(init_size)
         , char_data_(new char[capacity_ * sizeof(Type)]())
         , data_(reinterpret_cast<Type*>(char_data_)) {
 
@@ -154,11 +157,13 @@ public:
     }
 
     Type& Insert(size_t pos, const Type& value) {
-        pos = (pos > size_) ? size_ : pos;
-        this->Reserve(ClosestPowerOfTwo(size_ + 1));
+        if (size_ >= capacity_) {
+            this->Reserve(size_ ? size_ * 2 : 1);
+        }
 
-        new (data_ + size_++) Type(value);
-        for (size_t i = size_ - 1; i > pos; i--) {
+        pos = (pos > size_) ? size_ : pos;
+        new (data_ + size_) Type(value);
+        for (size_t i = size_++; i > pos; i--) {
             data_[i] = stdlike::move(data_[i - 1]);
         }
 
@@ -188,7 +193,7 @@ public:
         if (size_ >= new_size) {
             Release(data_, new_size, size_);
         } else {
-            this->Reserve(ClosestPowerOfTwo(new_size));
+            this->Reserve(new_size);
             Initialize(data_, size_, new_size, value);
             size_ = new_size;
         }
@@ -251,10 +256,6 @@ private:
         return end - start;
     }
 
-    static inline uint64_t ClosestPowerOfTwo(uint64_t number) {
-        return 1ull << (64 - static_cast<size_t>(__builtin_clzl(number)));
-    }
-
 private:
     size_t size_ = 0;
     size_t capacity_ = 0;
@@ -270,6 +271,9 @@ public:
         BitReference(uint8_t* source, size_t shift) : source_(source), shift_(shift) {
         }
 
+        BitReference(const BitReference& other) : source_(other.source_), shift_(other.shift_) {
+        }
+
         ~BitReference() {
             source_ = nullptr;
             shift_ = 0;
@@ -283,11 +287,15 @@ public:
                 uint8_t mask = static_cast<uint8_t>(~(1 << shift_));
                 *source_ &= mask;
             }
+
+            return *this;
         }
 
         BitReference& operator=(const BitReference& other) {
             bool value = (1 << shift_) & *other.source_;
             *this = value;
+
+            return *this;
         }
 
         operator bool() const {
@@ -305,8 +313,8 @@ public:
 
     explicit Vector(size_t init_size, bool value = false)
         : size_(init_size)
-        , capacity_(ClosestPowerOfTwo(init_size + (8 - (init_size % 8))))
-        , data_(new uint8_t[capacity_ >> 3]()) {
+        , capacity_(RoundUpToEightMultiple(init_size))
+        , data_(new uint8_t[BitsToBytes(capacity_)]()) {
 
         Initialize(data_, 0, size_, value);
     }
@@ -314,7 +322,7 @@ public:
     Vector(const Vector<bool>& other)
         : size_(other.Size())
         , capacity_(other.Capacity())
-        , data_(new uint8_t[other.Capacity() >> 3]()) {
+        , data_(new uint8_t[BitsToBytes(other.Capacity())]()) {
 
         Copy(data_, 0, other.Size(), other.Data());
     }
@@ -333,7 +341,7 @@ public:
     Vector<bool>& operator=(const Vector<bool>& other) {
         size_ = other.Size();
         capacity_ = other.Capacity();
-        data_ = new uint8_t[other.Capacity() >> 3]();
+        data_ = new uint8_t[BitsToBytes(other.Capacity())]();
 
         Copy(data_, 0, other.Size(), other.Data());
 
@@ -364,13 +372,13 @@ public:
 
     void Reserve(size_t new_capacity) {
         if (new_capacity > capacity_) {
-            this->ChangeCapacity(new_capacity);
+            this->ChangeCapacity(RoundUpToEightMultiple(new_capacity));
         }
     }
 
     void ShrinkToFit() {
         if (capacity_ > size_) {
-            this->ChangeCapacity(size_);
+            this->ChangeCapacity(RoundUpToEightMultiple(size_));
         }
     }
 
@@ -383,7 +391,7 @@ public:
 
     BitReference At(size_t pos) {
         assert(pos < size_);
-        return BitReference(data_ + (pos / 8), 8 - (pos % 8));
+        return BitReference(data_ + (pos >> 3 /* (pos / 8) */), 7 - (pos & 7) /* (pos % 8) */);
     }
 
     const BitReference operator[](size_t pos) const {
@@ -392,7 +400,7 @@ public:
     }
 
     BitReference operator[](size_t pos) {
-        return BitReference(data_ + (pos / 8), 8 - (pos % 8));
+        return BitReference(data_ + (pos >> 3 /* (pos / 8) */), 7 - (pos & 7) /* (pos % 8) */);
     }
 
     const BitReference Front() const {
@@ -428,28 +436,30 @@ public:
         size_ = 0;
     }
 
-    Type& Insert(size_t pos, const Type& value) {
-        pos = (pos > size_) ? size_ : pos;
-        this->Reserve(ClosestPowerOfTwo(size_ + 1));
-
-        new (data_ + size_++) Type(value);
-        for (size_t i = size_ - 1; i > pos; i--) {
-            data_[i] = stdlike::move(data_[i - 1]);
+    BitReference Insert(size_t pos, bool value) {
+        if (size_ >= capacity_) {
+            this->Reserve(size_ ? size_ * 2 : 1);
         }
 
-        return data_[pos] = value;
+        pos = (pos > size_) ? size_ : pos;
+        for (size_t i = size_++; i > pos; i--) {
+            SetValue(data_, i, GetValue(data_, i - 1));
+        }
+        SetValue(data_, pos, value);
+
+        return BitReference(data_ + (pos >> 3) /* (pos / 8) */, 7 - (pos & 7) /* (pos % 8) */);
     }
 
     void Erase(size_t pos) {
         if (pos < size_) {
             for (size_t i = pos; i < size_ - 1; i++) {
-                data_[i] = stdlike::move(data_[i + 1]);
+                SetValue(data_, i, GetValue(data_, i + 1));
             }
-            data_[size_--].~Type();
+            size_--;
         }
     }
 
-    void PushBack(const Type& value) {
+    void PushBack(bool value) {
         this->Insert(size_, value);
     }
 
@@ -459,16 +469,16 @@ public:
         }
     }
 
-    void Resize(size_t new_size, const Type& value = Type()) {
+    void Resize(size_t new_size, bool value = false) {
         if (size_ < new_size) {
-            this->Reserve(ClosestPowerOfTwo(new_size));
+            this->Reserve(RoundUpToEightMultiple(new_size));
             Initialize(data_, size_, new_size, value);
             size_ = new_size;
         }
     }
 
     void Swap(Vector& other) {
-        Vector<Type> temp = stdlike::move(other);
+        Vector<bool> temp = stdlike::move(other);
         other = stdlike::move(*this);
         *this = stdlike::move(temp);
     }
@@ -477,7 +487,8 @@ private:
     /* Helper functions */
 
     void ChangeCapacity(size_t new_capacity) {
-        uint8_t* new_data = new uint8_t[new_capacity >> 3];
+        new_capacity = RoundUpToEightMultiple(new_capacity);
+        uint8_t* new_data = new uint8_t[BitsToBytes(new_capacity)];
         size_t new_size = Copy(new_data, 0, std::min(size_, new_capacity), data_);
         this->~Vector();
 
@@ -491,7 +502,10 @@ private:
             return 0;
         }
 
-        std::memset();
+        for (size_t cur_pos = start; cur_pos < end; cur_pos++) {
+            SetValue(data, cur_pos, value);
+        }
+
         return end - start;
     }
 
@@ -500,12 +514,30 @@ private:
             return 0;
         }
 
-        std::memcpy();
+        for (size_t cur_pos = start; cur_pos < end; cur_pos++) {
+            SetValue(dest, cur_pos, GetValue(src, cur_pos));
+        }
+
         return end - start;
     }
 
-    static inline uint64_t ClosestPowerOfTwo(uint64_t number) {
-        return 1ull << (64 - static_cast<size_t>(__builtin_clzl(number)));
+    static inline bool GetValue(const uint8_t* data, size_t pos) {
+        size_t shift = 7 - /* (pos % 8) */ (pos & 7);
+        return *(data + /* (pos / 8) */ (pos >> 3)) & (1 << shift);
+    }
+
+    static inline void SetValue(uint8_t* data, size_t pos, bool value) {
+        size_t shift = 7 - /* (pos % 8) */ (pos & 7);
+        BitReference bit_ref(data + /* (pos / 8) */ (pos >> 3), shift);
+        bit_ref = value;
+    }
+
+    static inline uint64_t BitsToBytes(uint64_t bits) {
+        return bits >> 3;
+    }
+
+    static inline uint64_t RoundUpToEightMultiple(uint64_t num) {
+        return (num + 7) & ~7ull;
     }
 
 private:
@@ -515,10 +547,10 @@ private:
 };
 
 template <class Type>
-std::ostream& operator<<(std::ostream& stream, const Vector<Type>& obj) {
-    for (size_t i = 0; i < obj.Size(); i++) {
-        stream << obj.At(i);
-        if (i != obj.Size() - 1) {
+std::ostream& operator<<(std::ostream& stream, const Vector<Type>& vec) {
+    for (size_t i = 0; i < vec.Size(); i++) {
+        stream << vec.At(i);
+        if (i != vec.Size() - 1) {
             stream << " ";
         }
     }
