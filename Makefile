@@ -5,7 +5,7 @@ INC_DIRS := include
 BIN_DIR := bin
 BUILD_DIR := build
 
-APPLICATION := $(BUILD_DIR)/gui.out
+APPLICATION := $(BUILD_DIR)/vector.out
 
 SRC := $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 OBJ := $(addprefix $(BIN_DIR)/, $(patsubst %.cpp, %.o, $(notdir $(SRC))))
@@ -22,7 +22,7 @@ CXX_FLAGS += -D _DEBUG -ggdb3 -std=c++20 -O0 -pthread -Wall -Wextra -Weffc++ -Wa
 -Wswitch-default -Wswitch-enum -Wsync-nand -Wundef -Wunreachable-code -Wunused -Wuseless-cast -Wvariadic-macros\
 -Wno-literal-suffix -Wno-missing-field-initializers -Wno-narrowing -Wno-old-style-cast -Wno-varargs -Wstack-protector\
 -fcheck-new -fsized-deallocation -fstack-protector -fstrict-overflow -fno-omit-frame-pointer\
--Wlarger-than=8192 -Wstack-usage=8192 -pie -fPIE -fno-elide-constructors
+-Wlarger-than=8192 -Wstack-usage=8192 -pie -fPIE -fno-elide-constructors -fsanitize=address
 
 all: prepare $(APPLICATION)
 

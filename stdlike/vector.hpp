@@ -1,8 +1,9 @@
 #ifndef STDLIKE_VECTOR_HPP
 #define STDLIKE_VECTOR_HPP
 
+#include <cstddef>
 #include <iostream>
-#include <cinttypes>
+#include <cstdint>
 #include <cassert>
 #include <iterator>
 
@@ -33,6 +34,7 @@ public:
 
         Iterator& operator=(const Iterator& other) {
             ptr_ = other.ptr_;
+            return *this;
         }
 
         Type& operator*() const {
@@ -75,6 +77,7 @@ public:
                     --(*this);
                 }
             }
+            return *this;
         }
 
         Iterator& operator-=(ptrdiff_t diff) {
@@ -151,7 +154,7 @@ public:
 
     class ConstIterator : public std::iterator<std::contiguous_iterator_tag, Type> {
     public:
-        ConstIterator() {
+        ConstIterator() : ptr_(nullptr) {
         }
 
         ConstIterator(Type* ptr) : ptr_(ptr) {
@@ -280,6 +283,267 @@ public:
         return End();
     }
 
+    /* ReverseIterator */
+
+    class ReverseIterator : public std::iterator<std::contiguous_iterator_tag, Type> {
+    public:
+        ReverseIterator() : it_(Iterator()) {
+        }
+
+        explicit ReverseIterator(const Iterator& it) : it_(it) {
+        }
+
+        ~ReverseIterator() {
+        }
+
+        Iterator base() {
+
+        }
+
+        Type& operator*() const {
+            return it_.operator*();
+        }
+
+        Type* operator->() const {
+            return it_.operator->();
+        }
+
+        ReverseIterator& operator++() {
+            --it_;
+            return *this;
+        }
+
+        ReverseIterator operator++(int) {
+            ReverseIterator temp = *this;
+            --it_;
+            return temp;
+        }
+
+        ReverseIterator& operator--() {
+            ++it_;
+            return *this;
+        }
+
+        ReverseIterator operator--(int) {
+            ReverseIterator temp = *this;
+            ++it_;
+            return temp;
+        }
+
+        ReverseIterator& operator+=(ptrdiff_t diff) {
+            if (diff >= 0) {
+                while (diff--) {
+                    ++(*this);
+                }
+            } else {
+                while (diff++) {
+                    --(*this);
+                }
+            }
+            return *this;
+        }
+
+        ReverseIterator& operator-=(ptrdiff_t diff) {
+            return *this += -diff;
+        }
+
+        Type& operator[](ptrdiff_t diff) const {
+            return it_->operator[](-diff);
+        }
+
+        friend ReverseIterator operator+(const ReverseIterator& iter, ptrdiff_t diff) {
+            ReverseIterator temp = iter;
+            return temp += diff;
+        }
+
+        friend ReverseIterator operator+(ptrdiff_t diff, const ReverseIterator& iter) {
+            return iter + diff;
+        }
+
+        friend ReverseIterator operator-(const ReverseIterator& iter, ptrdiff_t diff) {
+            ReverseIterator temp = iter;
+            return temp -= diff;
+        }
+
+        friend ptrdiff_t operator-(const ReverseIterator& lhs, const ReverseIterator& rhs) {
+            return rhs.it_ - lhs.it_;
+        }
+
+        friend bool operator==(const ReverseIterator& lhs, const ReverseIterator& rhs) {
+            return lhs.it_ == rhs.it_;
+        }
+
+        friend bool operator!=(const ReverseIterator& lhs, const ReverseIterator& rhs) {
+            return !(lhs == rhs);
+        }
+
+        friend bool operator<(const ReverseIterator& lhs, const ReverseIterator& rhs) {
+            return rhs.it__ < lhs.it_;
+        }
+
+        friend bool operator>(const ReverseIterator& lhs, const ReverseIterator& rhs) {
+            return rhs < lhs;
+        }
+
+        friend bool operator<=(const ReverseIterator& lhs, const ReverseIterator& rhs) {
+            return !(lhs > rhs);
+        }
+
+        friend bool operator>=(const ReverseIterator& lhs, const ReverseIterator& rhs) {
+            return !(lhs < rhs);
+        }
+
+    private:
+        Iterator it_ = Iterator();
+    };
+
+    ReverseIterator Rbegin() {
+        return ReverseIterator(End());
+    }
+
+    ReverseIterator Rend() {
+        return ReverseIterator(Begin());
+    }
+
+    ReverseIterator rbegin() {
+        return Rbegin();
+    }
+
+    ReverseIterator rend() {
+        return Rend();
+    }
+
+    /* ConstReverseIterator */
+
+    class ConstReverseIterator : public std::iterator<std::contiguous_iterator_tag, Type> {
+    public:
+        ConstReverseIterator() : it_(ConstIterator()) {
+        }
+
+        explicit ConstReverseIterator(const ConstIterator& it) : it_(it) {
+        }
+
+        ~ConstReverseIterator() {
+        }
+
+        ConstIterator base() {
+
+        }
+
+        const Type& operator*() const {
+            return it_.operator*();
+        }
+
+        const Type* operator->() const {
+            return it_.operator->();
+        }
+
+        ConstReverseIterator& operator++() {
+            --it_;
+            return *this;
+        }
+
+        ConstReverseIterator operator++(int) {
+            ConstReverseIterator temp = *this;
+            --it_;
+            return temp;
+        }
+
+        ConstReverseIterator& operator--() {
+            ++it_;
+            return *this;
+        }
+
+        ConstReverseIterator operator--(int) {
+            ConstReverseIterator temp = *this;
+            ++it_;
+            return temp;
+        }
+
+        ConstReverseIterator& operator+=(ptrdiff_t diff) {
+            if (diff >= 0) {
+                while (diff--) {
+                    ++(*this);
+                }
+            } else {
+                while (diff++) {
+                    --(*this);
+                }
+            }
+            return *this;
+        }
+
+        ConstReverseIterator& operator-=(ptrdiff_t diff) {
+            return *this += -diff;
+        }
+
+        const Type& operator[](ptrdiff_t diff) const {
+            return it_->operator[](-diff);
+        }
+
+        friend ConstReverseIterator operator+(const ConstReverseIterator& iter, ptrdiff_t diff) {
+            ConstReverseIterator temp = iter;
+            return temp += diff;
+        }
+
+        friend ConstReverseIterator operator+(ptrdiff_t diff, const ConstReverseIterator& iter) {
+            return iter + diff;
+        }
+
+        friend ConstReverseIterator operator-(const ConstReverseIterator& iter, ptrdiff_t diff) {
+            ConstReverseIterator temp = iter;
+            return temp -= diff;
+        }
+
+        friend ptrdiff_t operator-(const ConstReverseIterator& lhs, const ConstReverseIterator& rhs) {
+            return rhs.it_ - lhs.it_;
+        }
+
+        friend bool operator==(const ConstReverseIterator& lhs, const ConstReverseIterator& rhs) {
+            return lhs.it_ == rhs.it_;
+        }
+
+        friend bool operator!=(const ConstReverseIterator& lhs, const ConstReverseIterator& rhs) {
+            return !(lhs == rhs);
+        }
+
+        friend bool operator<(const ConstReverseIterator& lhs, const ConstReverseIterator& rhs) {
+            return rhs.it__ < lhs.it_;
+        }
+
+        friend bool operator>(const ConstReverseIterator& lhs, const ReverseIterator& rhs) {
+            return rhs < lhs;
+        }
+
+        friend bool operator<=(const ConstReverseIterator& lhs, const ConstReverseIterator& rhs) {
+            return !(lhs > rhs);
+        }
+
+        friend bool operator>=(const ConstReverseIterator& lhs, const ConstReverseIterator& rhs) {
+            return !(lhs < rhs);
+        }
+
+    private:
+        ConstIterator it_ = ConstIterator();
+    };
+
+    ConstReverseIterator Rbegin() const {
+        return ConstReverseIterator(End());
+    }
+
+    ConstReverseIterator Rend() const {
+        return ConstReverseIterator(Begin());
+    }
+
+    ConstReverseIterator rbegin() const {
+        return Rbegin();
+    }
+
+    ConstReverseIterator rend() const {
+        return Rend();
+    }
+
+
 public:
     Vector() : size_(0), capacity_(0), char_data_(nullptr), data_(nullptr) {
     }
@@ -319,6 +583,9 @@ public:
     }
 
     Vector<Type>& operator=(const Vector<Type>& other) {
+        this->Clear();
+        this->ShrinkToFit();
+
         size_ = other.Size();
         capacity_ = other.Capacity();
         char_data_ = new char[other.Capacity() * sizeof(Type)]();
@@ -421,36 +688,42 @@ public:
         size_ = 0;
     }
 
-    Type& Insert(size_t pos, const Type& value) {
-        if (size_ >= capacity_) {
+    Iterator Insert(Iterator pos, const Type& value) {
+        ptrdiff_t offset = pos - Begin();
+        if (size_ >= capacity_) { /* Invalidates Iterators */
             this->Reserve(size_ ? size_ * 2 : 1);
         }
 
-        pos = (pos > size_) ? size_ : pos;
-        new (data_ + size_) Type(value);
-        for (size_t i = size_++; i > pos; i--) {
-            data_[i] = stdlike::move(data_[i - 1]);
+        pos = Begin() + offset;
+        new (data_ + size_++) Type(value);
+        for (Iterator it = End() - 1; it > pos; it--) {
+            *it = stdlike::move(*(it - 1));
         }
 
-        return data_[pos] = value;
+        *pos = value;
+        return pos;
     }
 
-    void Erase(size_t pos) {
-        if (pos < size_) {
-            for (size_t i = pos; i < size_ - 1; i++) {
-                data_[i] = stdlike::move(data_[i + 1]);
-            }
-            data_[size_--].~Type();
+    Iterator Erase(Iterator pos) {
+        if (pos >= End()) {
+            return End();
         }
+
+        for (Iterator it = pos; it < End() - 1; it++) {
+            *it = stdlike::move(*(it + 1));
+        }
+
+        data_[--size_].~Type();
+        return pos;
     }
 
     void PushBack(const Type& value) {
-        this->Insert(size_, value);
+        this->Insert(End(), value);
     }
 
     void PopBack() {
         if (size_ > 0) {
-            this->Erase(size_ - 1);
+            this->Erase(End() - 1);
         }
     }
 
@@ -474,7 +747,7 @@ private:
     /* Helper functions */
 
     void ChangeCapacity(size_t new_capacity) {
-        char* new_char_data = new char[new_capacity * sizeof(Type)];
+        char* new_char_data = new_capacity ? new char[new_capacity * sizeof(Type)] : nullptr;
         Type* new_data = reinterpret_cast<Type*>(new_char_data);
         size_t new_size = Copy(new_data, 0, std::min(size_, new_capacity), data_);
         this->~Vector();
@@ -486,6 +759,10 @@ private:
     }
 
     static inline size_t Release(Type* data, size_t start, size_t end) {
+        if (start == end) {
+            return 0;
+        }
+
         assert(data);
         for (size_t i = start; i < end; i++) {
             data[i].~Type();
@@ -495,6 +772,10 @@ private:
     }
 
     static inline size_t Initialize(Type* data, size_t start, size_t end, const Type& value) {
+        if (start == end) {
+            return 0;
+        }
+
         assert(data);
         for (size_t cur_offset = start; cur_offset < end; cur_offset++) {
             new (data + cur_offset) Type(value);
@@ -504,6 +785,10 @@ private:
     }
 
     static inline size_t Copy(Type* dest, size_t start, size_t end, const Type* src) {
+        if (start == end) {
+            return 0;
+        }
+
         assert(dest && src);
         for (size_t cur_offset = start; cur_offset < end; cur_offset++) {
             new (dest + cur_offset) Type(src[cur_offset]);
@@ -716,7 +1001,6 @@ public:
             return !(lhs < rhs);
         }
 
-
     private:
         uint32_t* data_ = nullptr;
         uint32_t shift_ = 0;
@@ -867,7 +1151,6 @@ public:
             return !(lhs < rhs);
         }
 
-
     private:
         uint32_t* data_ = nullptr;
         uint32_t shift_ = 0;
@@ -896,7 +1179,9 @@ public:
     }
 
     explicit Vector(size_t init_size, bool value = false)
-        : size_(init_size), capacity_(RoundUpToThirtyTwoMultiple(init_size)), data_(new uint32_t[BitsToBytes(capacity_)]()) {
+        : size_(init_size)
+        , capacity_(RoundUpToThirtyTwoMultiple(init_size))
+        , data_(new uint32_t[BitsToBytes(capacity_)]()) {
 
         Initialize(data_, 0, size_, value);
     }
@@ -919,6 +1204,9 @@ public:
     }
 
     Vector<bool>& operator=(const Vector<bool>& other) {
+        this->Clear();
+        this->ShrinkToFit();
+
         size_ = other.Size();
         capacity_ = other.Capacity();
         data_ = new uint32_t[BitsToBytes(other.Capacity())]();
