@@ -10,25 +10,25 @@ void g(T) {
 }
 
 int main() {
-    stdlike::Vector<int> test2(10, 9);
-    g(test2.begin());
+    stdlike::Vector<bool> bvector_test(10, true);
+    f(bvector_test.begin());
 
-    test2.PushBack(10);
-    auto found2 = std::find(test2.begin(), test2.end(), 10);
+    bvector_test.PushBack(false);
+    auto found = std::find(bvector_test.begin(), bvector_test.end(), false);
 
-    if (found2 != test2.end()) {
+    if (found != bvector_test.end()) {
         std::cout << "Found" << std::endl;
     } else {
         std::cout << "Not found" << std::endl;
     }
 
-    stdlike::Vector<bool> test(10, true);
-    f(test.begin());
+    stdlike::Vector<int> vector_test(10, 9);
+    g(vector_test.begin());
 
-    test.PushBack(false);
-    auto found = std::find(test.begin(), test.end(), false);
+    vector_test.PushBack(10);
+    auto found2 = std::find(vector_test.begin(), vector_test.end(), 10);
 
-    if (found != test.end()) {
+    if (found2 != vector_test.end()) {
         std::cout << "Found" << std::endl;
     } else {
         std::cout << "Not found" << std::endl;

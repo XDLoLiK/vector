@@ -1,8 +1,6 @@
 #ifndef STDLIKE_VECTOR_HPP
 #define STDLIKE_VECTOR_HPP
 
-#include <cstddef>
-#include <cstdint>
 #include <iostream>
 #include <cinttypes>
 #include <cassert>
@@ -16,6 +14,8 @@ namespace stdlike {
 template <typename Type>
 class Vector {
 public:
+    /* Iterator */
+
     class Iterator : public std::iterator<std::contiguous_iterator_tag, Type> {
     public:
         Iterator() {
@@ -144,6 +144,139 @@ public:
     }
 
     Iterator end() {
+        return End();
+    }
+
+    /* ConstIterator */
+
+    class ConstIterator : public std::iterator<std::contiguous_iterator_tag, Type> {
+    public:
+        ConstIterator() {
+        }
+
+        ConstIterator(Type* ptr) : ptr_(ptr) {
+        }
+
+        ConstIterator(const ConstIterator& other) : ptr_(other.ptr_) {
+        }
+
+        ~ConstIterator() {
+            ptr_ = nullptr;
+        }
+
+        ConstIterator& operator=(const ConstIterator& other) {
+            ptr_ = other.ptr_;
+        }
+
+        const Type& operator*() const {
+            return *ptr_;
+        }
+
+        const Type* operator->() const {
+            return ptr_;
+        }
+
+        ConstIterator& operator++() {
+            ++ptr_;
+            return *this;
+        }
+
+        ConstIterator operator++(int) {
+            ConstIterator temp = *this;
+            ++ptr_;
+            return temp;
+        }
+
+        ConstIterator& operator--() {
+            --ptr_;
+            return *this;
+        }
+
+        ConstIterator operator--(int) {
+            ConstIterator temp = *this;
+            --ptr_;
+            return temp;
+        }
+
+        ConstIterator& operator+=(ptrdiff_t diff) {
+            if (diff >= 0) {
+                while (diff--) {
+                    ++(*this);
+                }
+            } else {
+                while (diff++) {
+                    --(*this);
+                }
+            }
+        }
+
+        ConstIterator& operator-=(ptrdiff_t diff) {
+            return *this += -diff;
+        }
+
+        const Type& operator[](ptrdiff_t diff) const {
+            return ptr_[diff];
+        }
+
+        friend ConstIterator operator+(const ConstIterator& iter, ptrdiff_t diff) {
+            ConstIterator temp = iter;
+            return temp += diff;
+        }
+
+        friend ConstIterator operator+(ptrdiff_t diff, const ConstIterator& iter) {
+            return iter + diff;
+        }
+
+        friend ConstIterator operator-(const ConstIterator& iter, ptrdiff_t diff) {
+            ConstIterator temp = iter;
+            return temp -= diff;
+        }
+
+        friend ptrdiff_t operator-(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return lhs.ptr_ - rhs.ptr_;
+        }
+
+        friend bool operator==(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return lhs.ptr_ == rhs.ptr_;
+        }
+
+        friend bool operator!=(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return !(lhs == rhs);
+        }
+
+        friend bool operator<(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return lhs.ptr_ < rhs.ptr_;
+        }
+
+        friend bool operator>(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return rhs < lhs;
+        }
+
+        friend bool operator<=(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return !(lhs > rhs);
+        }
+
+        friend bool operator>=(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return !(lhs < rhs);
+        }
+
+    private:
+        Type* ptr_ = nullptr;
+    };
+
+    ConstIterator Begin() const {
+        return ConstIterator(data_);
+    }
+
+    ConstIterator End() const {
+        return ConstIterator(data_ + size_);
+    }
+
+    ConstIterator begin() const {
+        return Begin();
+    }
+
+    ConstIterator end() const {
         return End();
     }
 
@@ -602,6 +735,157 @@ public:
     }
 
     Vector<bool>::Iterator end() {
+        return End();
+    }
+
+    /* ConstIterator */
+
+    class ConstIterator {
+    public:
+        /* Traits */
+
+        using iterator_category = std::random_access_iterator_tag;
+        using difference_type = int32_t;
+        using const_iterator = ConstIterator;
+
+        using value_type = bool;
+        using pointer = BitReference*;
+        using reference = BitReference;
+
+        ConstIterator() : data_(nullptr), shift_(0) {
+        }
+
+        ConstIterator(uint32_t* data, uint32_t shift) : data_(data), shift_(shift) {
+        }
+
+        ConstIterator(const ConstIterator& other) : data_(other.data_), shift_(other.shift_) {
+        }
+
+        ~ConstIterator() {
+            data_ = nullptr;
+            shift_ = 0;
+        }
+
+        ConstIterator& operator=(const ConstIterator& other) {
+            data_ = other.data_;
+            shift_ = other.shift_;
+            return *this;
+        }
+
+        const reference operator*() const {
+            return reference(data_, 1u << shift_);
+        }
+
+        ConstIterator& operator++() {
+            if (shift_-- == 0) {
+                shift_ = 31;
+                data_++;
+            }
+            return *this;
+        }
+
+        ConstIterator operator++(int) {
+            ConstIterator old = *this;
+            ++(*this);
+            return old;
+        }
+
+        ConstIterator& operator--() {
+            if (shift_++ == 31) {
+                shift_ = 0;
+                data_--;
+            }
+            return *this;
+        }
+
+        ConstIterator operator--(int) {
+            ConstIterator old = *this;
+            --(*this);
+            return old;
+        }
+
+        ConstIterator& operator+=(difference_type diff) {
+            if (diff > 0) {
+                while (diff--) {
+                    ++(*this);
+                }
+            } else {
+                while (diff++) {
+                    --(*this);
+                }
+            }
+            return *this;
+        }
+
+        ConstIterator& operator-=(difference_type diff) {
+            return *this += -diff;
+        }
+
+        const reference operator[](difference_type diff) const {
+            return *(*this + diff);
+        }
+
+        friend difference_type operator-(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return static_cast<difference_type>(32 * (lhs.data_ - rhs.data_) + rhs.shift_ - lhs.shift_);
+        }
+
+        friend ConstIterator operator+(const ConstIterator& iter, int32_t diff) {
+            ConstIterator temp = iter;
+            return temp += diff;
+        }
+
+        friend ConstIterator operator+(int32_t diff, const ConstIterator& iter) {
+            return iter + diff;
+        }
+
+        friend ConstIterator operator-(const ConstIterator& iter, int32_t diff) {
+            ConstIterator temp = iter;
+            return temp -= diff;
+        }
+
+        friend bool operator==(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return (lhs.data_ == rhs.data_ && lhs.shift_ == rhs.shift_);
+        }
+
+        friend bool operator!=(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return !(lhs == rhs);
+        }
+
+        friend bool operator<(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return (lhs.data_ < rhs.data_) || (lhs.data_ == rhs.data_ && lhs.shift_ > rhs.shift_);
+        }
+
+        friend bool operator>(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return (rhs < lhs);
+        }
+
+        friend bool operator<=(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return !(lhs > rhs);
+        }
+
+        friend bool operator>=(const ConstIterator& lhs, const ConstIterator& rhs) {
+            return !(lhs < rhs);
+        }
+
+
+    private:
+        uint32_t* data_ = nullptr;
+        uint32_t shift_ = 0;
+    };
+
+    Vector<bool>::ConstIterator Begin() const {
+        return ConstIterator(data_, 31);
+    }
+
+    Vector<bool>::ConstIterator End() const {
+        return ConstIterator(data_ + DivideByThirtyTwo(size_), 31 - ThirtyTwoModulo(size_));
+    }
+
+    Vector<bool>::ConstIterator begin() const {
+        return Begin();
+    }
+
+    Vector<bool>::ConstIterator end() const {
         return End();
     }
 
