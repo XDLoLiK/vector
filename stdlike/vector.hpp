@@ -879,7 +879,7 @@ public:
         /* Traits */
 
         using iterator_category = std::random_access_iterator_tag;
-        using difference_type = int32_t;
+        using difference_type = ptrdiff_t;
         using iterator = Iterator;
 
         using value_type = bool;
@@ -960,19 +960,19 @@ public:
         }
 
         friend difference_type operator-(const Iterator& lhs, const Iterator& rhs) {
-            return static_cast<difference_type>(32 * (lhs.data_ - rhs.data_) + rhs.shift_ - lhs.shift_);
+            return (32 * (lhs.data_ - rhs.data_) + rhs.shift_ - lhs.shift_);
         }
 
-        friend Iterator operator+(const Iterator& iter, int32_t diff) {
+        friend Iterator operator+(const Iterator& iter, difference_type diff) {
             Iterator temp = iter;
             return temp += diff;
         }
 
-        friend Iterator operator+(int32_t diff, const Iterator& iter) {
+        friend Iterator operator+(difference_type diff, const Iterator& iter) {
             return iter + diff;
         }
 
-        friend Iterator operator-(const Iterator& iter, int32_t diff) {
+        friend Iterator operator-(const Iterator& iter, difference_type diff) {
             Iterator temp = iter;
             return temp -= diff;
         }
@@ -1029,7 +1029,7 @@ public:
         /* Traits */
 
         using iterator_category = std::random_access_iterator_tag;
-        using difference_type = int32_t;
+        using difference_type = ptrdiff_t;
         using const_iterator = ConstIterator;
 
         using value_type = bool;
@@ -1110,19 +1110,19 @@ public:
         }
 
         friend difference_type operator-(const ConstIterator& lhs, const ConstIterator& rhs) {
-            return static_cast<difference_type>(32 * (lhs.data_ - rhs.data_) + rhs.shift_ - lhs.shift_);
+            return (32 * (lhs.data_ - rhs.data_) + rhs.shift_ - lhs.shift_);
         }
 
-        friend ConstIterator operator+(const ConstIterator& iter, int32_t diff) {
+        friend ConstIterator operator+(const ConstIterator& iter, difference_type diff) {
             ConstIterator temp = iter;
             return temp += diff;
         }
 
-        friend ConstIterator operator+(int32_t diff, const ConstIterator& iter) {
+        friend ConstIterator operator+(difference_type diff, const ConstIterator& iter) {
             return iter + diff;
         }
 
-        friend ConstIterator operator-(const ConstIterator& iter, int32_t diff) {
+        friend ConstIterator operator-(const ConstIterator& iter, difference_type diff) {
             ConstIterator temp = iter;
             return temp -= diff;
         }
@@ -1306,36 +1306,43 @@ public:
         size_ = 0;
     }
 
-    BitReference Insert(size_t pos, bool value) {
-        if (size_ >= capacity_) {
+    Iterator Insert(Iterator pos, bool value) {
+        ptrdiff_t offset = pos - Begin();
+        if (size_ >= capacity_) { /* Invalidates Iterators */
             this->Reserve(size_ ? size_ * 2 : 1);
         }
 
-        pos = (pos > size_) ? size_ : pos;
-        for (size_t i = size_++; i > pos; i--) {
-            SetValue(data_, i, GetValue(data_, i - 1));
-        }
-        SetValue(data_, pos, value);
+        pos = Begin() + offset;
+        size_++;
 
-        return BitReference(data_ + DivideByThirtyTwo(pos), 1u << (31u - ThirtyTwoModulo(pos)));
+        for (Iterator it = End() - 1; it > pos; it--) {
+            *it = stdlike::move(*(it - 1));
+        }
+
+        *pos = value;
+        return pos;
     }
 
-    void Erase(size_t pos) {
-        if (pos < size_) {
-            for (size_t i = pos; i < size_ - 1; i++) {
-                SetValue(data_, i, GetValue(data_, i + 1));
-            }
-            size_--;
+    Iterator Erase(Iterator pos) {
+        if (pos >= End()) {
+            return End();
         }
+
+        for (Iterator it = pos; it < End() - 1; it++) {
+            *it = stdlike::move(*(it + 1));
+        }
+
+        size_--;
+        return pos;
     }
 
     void PushBack(bool value) {
-        this->Insert(size_, value);
+        this->Insert(End(), value);
     }
 
     void PopBack() {
         if (size_ > 0) {
-            this->Erase(size_ - 1);
+            this->Erase(End() - 1);
         }
     }
 
