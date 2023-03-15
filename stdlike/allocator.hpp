@@ -112,4 +112,9 @@ public:
 	}
 };
 
+template <>
+class Allocator<bool> {
+
+};
+
 }  // namespace stdlike

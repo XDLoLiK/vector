@@ -1,5 +1,7 @@
-#include <stdlike/vector.hpp>
 #include <vector>
+#include <algorithm>
+
+#include <stdlike/vector.hpp>
 
 template <std::random_access_iterator T>
 void f(T) {

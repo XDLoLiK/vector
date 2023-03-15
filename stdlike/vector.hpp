@@ -4,10 +4,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cassert>
+#include <functional>
 #include <iostream>
 #include <iterator>
-#include <memory>
+#include <tuple>
 #include <type_traits>
+#include <memory>
 
 #include <stdlike/move.hpp>
 #include <stdlike/forward.hpp>
@@ -22,29 +24,33 @@ public:
 
     class Iterator : public std::iterator<std::contiguous_iterator_tag, Type> {
     public:
-        Iterator() {
+        Iterator() : ptr_(nullptr), container_(nullptr) {
         }
 
-        Iterator(Type* ptr) : ptr_(ptr) {
+        Iterator(Type* ptr, Vector* container = nullptr) : ptr_(ptr), container_(container) {
         }
 
-        Iterator(const Iterator& other) : ptr_(other.ptr_) {
+        Iterator(const Iterator& other) : ptr_(other.ptr_), container_(other.container_) {
         }
 
         ~Iterator() {
             ptr_ = nullptr;
+            container_ = nullptr;
         }
 
         Iterator& operator=(const Iterator& other) {
             ptr_ = other.ptr_;
+            container_ = other.container_;
             return *this;
         }
 
         Type& operator*() const {
+            assert(ptr_ && container_ && ptr_ < container_->End().ptr_);
             return *ptr_;
         }
 
         Type* operator->() const {
+            assert(ptr_ && container_ && ptr_ < container_->End().ptr_);
             return ptr_;
         }
 
@@ -133,16 +139,19 @@ public:
             return !(lhs < rhs);
         }
 
+        friend auto operator<=>(const Iterator& lhs, const Iterator& rhs) = default; // !
+
     private:
         Type* ptr_ = nullptr;
+        Vector* container_ = nullptr;
     };
 
     Iterator Begin() {
-        return Iterator(data_);
+        return Iterator(data_, this);
     }
 
     Iterator End() {
-        return Iterator(data_ + size_);
+        return Iterator(data_ + size_, this);
     }
 
     Iterator begin() {
@@ -155,30 +164,34 @@ public:
 
     /* ConstIterator */
 
-    class ConstIterator : public std::iterator<std::contiguous_iterator_tag, Type> {
+    class ConstIterator : public std::iterator<std::contiguous_iterator_tag, Type> { // ! template
     public:
-        ConstIterator() : ptr_(nullptr) {
+        ConstIterator() : ptr_(nullptr), container_(nullptr) {
         }
 
-        ConstIterator(Type* ptr) : ptr_(ptr) {
+        ConstIterator(Type* ptr, const Vector* container) : ptr_(ptr), container_(container) {
         }
 
-        ConstIterator(const ConstIterator& other) : ptr_(other.ptr_) {
+        ConstIterator(const ConstIterator& other) : ptr_(other.ptr_), container_(other.container) {
         }
 
         ~ConstIterator() {
             ptr_ = nullptr;
+            container_ = nullptr;
         }
 
         ConstIterator& operator=(const ConstIterator& other) {
             ptr_ = other.ptr_;
+            container_ = other.container_;
         }
 
         const Type& operator*() const {
+            assert(ptr_ && container_ && ptr_ < End().ptr_);
             return *ptr_;
         }
 
         const Type* operator->() const {
+            assert(ptr_ && container_ && ptr_ < End().ptr_);
             return ptr_;
         }
 
@@ -266,16 +279,19 @@ public:
             return !(lhs < rhs);
         }
 
+        friend auto operator<=>(const ConstIterator& lhs, const ConstIterator& rhs) = default;
+
     private:
-        Type* ptr_ = nullptr;
+        const Type* ptr_ = nullptr;
+        const Vector* container_ = nullptr;
     };
 
     ConstIterator Begin() const {
-        return ConstIterator(data_);
+        return ConstIterator(data_, this);
     }
 
     ConstIterator End() const {
-        return ConstIterator(data_ + size_);
+        return ConstIterator(data_ + size_, this);
     }
 
     ConstIterator begin() const {
@@ -291,7 +307,6 @@ public:
      * use std::make_reverse_iterator()
      */
 
-
 public:
     /* Vector<Type> */
 
@@ -299,24 +314,21 @@ public:
     }
 
     explicit Vector(size_t init_size, const Type& value = Type())
-        : allocator_(Alloc())
-        , size_(init_size)
-        , capacity_(init_size)
-        , data_(allocator_.allocate(capacity_)) {
+        : allocator_(Alloc()), size_(init_size), capacity_(init_size), data_(allocator_.allocate(capacity_)) {
 
-        Initialize(data_, 0, size_, value);
+        this->Initialize(data_, 0, size_, value);
     }
 
-    Vector(const Vector<Type>& other)
+    Vector(const Vector& other)
         : allocator_(Alloc())
         , size_(other.Size())
         , capacity_(other.Capacity())
         , data_(allocator_.allocate(other.Capacity())) {
 
-        Copy(data_, 0, other.Size(), other.Data());
+        this->Copy(data_, 0, other.Size(), other.Data());
     }
 
-    Vector(Vector<Type>&& temp) {
+    Vector(Vector&& temp) {
         *this = std::move(temp);
     }
 
@@ -328,18 +340,18 @@ public:
         data_ = nullptr;
     }
 
-    Vector<Type>& operator=(const Vector<Type>& other) {
+    Vector& operator=(const Vector& other) {
         this->~Vector();
         size_ = other.Size();
         capacity_ = other.Capacity();
         data_ = allocator_.allocate(other.Capacity());
 
-        Copy(data_, 0, other.Size(), other.Data());
+        this->Copy(data_, 0, other.Size(), other.Data());
 
         return *this;
     }
 
-    Vector<Type>& operator=(Vector<Type>&& temp) {
+    Vector& operator=(Vector&& temp) {
         std::swap(temp.size_, size_);
         std::swap(temp.capacity_, capacity_);
         std::swap(temp.data_, data_);
@@ -347,7 +359,7 @@ public:
         return *this;
     }
 
-    bool operator==(const Vector<Type>&) const = delete;
+    bool operator==(const Vector&) const = delete;
 
     /* Capacity */
 
@@ -378,7 +390,7 @@ public:
     /* Element access */
 
     const Type& At(size_t pos) const {
-        Type& ret = const_cast<Vector<Type>*>(this)->At(pos);
+        Type& ret = const_cast<Vector*>(this)->At(pos);
         return const_cast<const Type&>(ret);
     }
 
@@ -388,7 +400,7 @@ public:
     }
 
     const Type& operator[](size_t pos) const {
-        Type& ret = const_cast<Vector<Type>*>(this)->operator[](pos);
+        Type& ret = const_cast<Vector*>(this)->operator[](pos);
         return const_cast<const Type&>(ret);
     }
 
@@ -397,7 +409,7 @@ public:
     }
 
     const Type& Front() const {
-        Type& ret = const_cast<Vector<Type>*>(this)->Front();
+        Type& ret = const_cast<Vector*>(this)->Front();
         return const_cast<const Type&>(ret);
     }
 
@@ -406,7 +418,7 @@ public:
     }
 
     const Type& Back() const {
-        Type& ret = const_cast<Vector<Type>*>(this)->Back();
+        Type& ret = const_cast<Vector*>(this)->Back();
         return const_cast<const Type&>(ret);
     }
 
@@ -415,7 +427,7 @@ public:
     }
 
     const Type* Data() const {
-        Type* ret = const_cast<Vector<Type>*>(this)->Data();
+        Type* ret = const_cast<Vector*>(this)->Data();
         return const_cast<const Type*>(ret);
     }
 
@@ -426,7 +438,7 @@ public:
     /* Modifiers */
 
     void Clear() {
-        Release(data_, 0, size_);
+        this->Release(data_, 0, size_);
         size_ = 0;
     }
 
@@ -472,16 +484,16 @@ public:
 
     void Resize(size_t new_size, const Type& value = Type()) {
         if (size_ >= new_size) {
-            Release(data_, new_size, size_);
+            this->Release(data_, new_size, size_);
         } else {
             this->Reserve(new_size);
-            Initialize(data_, size_, new_size, value);
+            this->Initialize(data_, size_, new_size, value);
             size_ = new_size;
         }
     }
 
     void Swap(Vector& other) {
-        Vector<Type> temp = stdlike::move(other);
+        Vector temp = stdlike::move(other);
         other = stdlike::move(*this);
         *this = stdlike::move(temp);
     }
@@ -491,7 +503,7 @@ private:
 
     void ChangeCapacity(size_t new_capacity) {
         Type* new_data = allocator_.allocate(new_capacity);
-        size_t new_size = Copy(new_data, 0, std::min(size_, new_capacity), data_);
+        size_t new_size = this->Copy(new_data, 0, std::min(size_, new_capacity), data_);
         this->~Vector();
 
         size_ = new_size;
@@ -546,7 +558,7 @@ private:
 };
 
 template <>
-class Vector<bool> {
+class Vector<bool, Allocator<bool>> {
 public:
     /* BitReference */
 
@@ -567,6 +579,7 @@ public:
         }
 
         BitReference& operator=(bool value) {
+            assert(source_);
             if (value) {
                 *source_ |= mask_;
             } else {
@@ -580,7 +593,14 @@ public:
         }
 
         operator bool() const {
+            assert(source_);
             return mask_ & *source_;
+        }
+
+        friend void swap(BitReference lhs, BitReference rhs) {
+            bool temp = lhs;
+            lhs = rhs;
+            rhs = temp;
         }
 
         friend bool operator==(const BitReference& lhs, const BitReference& rhs) {
@@ -607,6 +627,8 @@ public:
             return !(lhs < rhs);
         }
 
+        friend auto operator<=>(const BitReference& lhs, const BitReference& rhs) = default;
+
     private:
         uint32_t* source_ = nullptr;
         uint32_t mask_ = 0;
@@ -617,8 +639,6 @@ public:
 
     class Iterator {
     public:
-        /* Traits */
-
         using iterator_category = std::random_access_iterator_tag;
         using difference_type = ptrdiff_t;
         using iterator = Iterator;
@@ -627,27 +647,33 @@ public:
         using pointer = BitReference*;
         using reference = BitReference;
 
-        Iterator() : data_(nullptr), shift_(0) {
+        Iterator() : data_(nullptr), shift_(0), container_(nullptr) {
         }
 
-        Iterator(uint32_t* data, uint32_t shift) : data_(data), shift_(shift) {
+        Iterator(uint32_t* data, uint32_t shift, Vector* container = nullptr)
+            : data_(data), shift_(shift), container_(container) {
         }
 
-        Iterator(const Iterator& other) : data_(other.data_), shift_(other.shift_) {
+        Iterator(const Iterator& other) : data_(other.data_), shift_(other.shift_), container_(other.container_) {
         }
 
         ~Iterator() {
             data_ = nullptr;
             shift_ = 0;
+            container_ = nullptr;
         }
 
         Iterator& operator=(const Iterator& other) {
             data_ = other.data_;
             shift_ = other.shift_;
+            container_ = other.container_;
             return *this;
         }
 
         reference operator*() const {
+            assert(data_ && container_);
+            assert((data_ < container_->End().data_) ||
+                   (data_ == container_->End().data_ && shift_ > container_->End().shift_));
             return reference(data_, 1u << shift_);
         }
 
@@ -742,24 +768,27 @@ public:
             return !(lhs < rhs);
         }
 
+        friend auto operator<=>(const Iterator& lhs, const Iterator& rhs) = default;
+
     private:
         uint32_t* data_ = nullptr;
         uint32_t shift_ = 0;
+        Vector* container_ = nullptr;
     };
 
-    Vector<bool>::Iterator Begin() {
-        return Iterator(data_, 31);
+    Iterator Begin() {
+        return Iterator(data_, 31, this); // ! magic const
     }
 
-    Vector<bool>::Iterator End() {
-        return Iterator(data_ + DivideByThirtyTwo(size_), 31 - ThirtyTwoModulo(size_));
+    Iterator End() {
+        return Iterator(data_ + DivideByThirtyTwo(size_), 31 - ThirtyTwoModulo(size_), this);
     }
 
-    Vector<bool>::Iterator begin() {
+    Iterator begin() {
         return Begin();
     }
 
-    Vector<bool>::Iterator end() {
+    Iterator end() {
         return End();
     }
 
@@ -767,8 +796,6 @@ public:
 
     class ConstIterator {
     public:
-        /* Traits */
-
         using iterator_category = std::random_access_iterator_tag;
         using difference_type = ptrdiff_t;
         using const_iterator = ConstIterator;
@@ -777,27 +804,34 @@ public:
         using pointer = BitReference*;
         using reference = BitReference;
 
-        ConstIterator() : data_(nullptr), shift_(0) {
+        ConstIterator() : data_(nullptr), shift_(0), container_(nullptr) {
         }
 
-        ConstIterator(uint32_t* data, uint32_t shift) : data_(data), shift_(shift) {
+        ConstIterator(uint32_t* data, uint32_t shift, const Vector* container = nullptr)
+            : data_(data), shift_(shift), container_(container) {
         }
 
-        ConstIterator(const ConstIterator& other) : data_(other.data_), shift_(other.shift_) {
+        ConstIterator(const ConstIterator& other)
+            : data_(other.data_), shift_(other.shift_), container_(other.container_) {
         }
 
         ~ConstIterator() {
             data_ = nullptr;
             shift_ = 0;
+            container_ = nullptr;
         }
 
         ConstIterator& operator=(const ConstIterator& other) {
             data_ = other.data_;
             shift_ = other.shift_;
+            container_ = other.container_;
             return *this;
         }
 
         const reference operator*() const {
+            assert(data_ && container_);
+            assert((data_ < container_->End().data_) ||
+                   (data_ == container_->End().data_ && shift_ > container_->End().shift_));
             return reference(data_, 1u << shift_);
         }
 
@@ -892,24 +926,27 @@ public:
             return !(lhs < rhs);
         }
 
+        friend auto operator<=>(const ConstIterator& lhs, const ConstIterator& rhs) = default;
+
     private:
         uint32_t* data_ = nullptr;
         uint32_t shift_ = 0;
+        const Vector* container_ = nullptr;
     };
 
-    Vector<bool>::ConstIterator Begin() const {
-        return ConstIterator(data_, 31);
+    ConstIterator Begin() const {
+        return ConstIterator(data_, 31, this);
     }
 
-    Vector<bool>::ConstIterator End() const {
-        return ConstIterator(data_ + DivideByThirtyTwo(size_), 31 - ThirtyTwoModulo(size_));
+    ConstIterator End() const {
+        return ConstIterator(data_ + DivideByThirtyTwo(size_), 31 - ThirtyTwoModulo(size_), this);
     }
 
-    Vector<bool>::ConstIterator begin() const {
+    ConstIterator begin() const {
         return Begin();
     }
 
-    Vector<bool>::ConstIterator end() const {
+    ConstIterator end() const {
         return End();
     }
 
@@ -929,16 +966,16 @@ public:
         , capacity_(RoundUpToThirtyTwoMultiple(init_size))
         , data_(new uint32_t[BitsToBytes(capacity_)]()) {
 
-        Initialize(data_, 0, size_, value);
+        this->Initialize(data_, 0, size_, value);
     }
 
-    Vector(const Vector<bool>& other)
+    Vector(const Vector& other)
         : size_(other.Size()), capacity_(other.Capacity()), data_(new uint32_t[BitsToBytes(other.Capacity())]()) {
 
-        Copy(data_, 0, other.Size(), other.Data());
+        this->Copy(data_, 0, other.Size(), other.Data());
     }
 
-    Vector(Vector<bool>&& temp) {
+    Vector(Vector&& temp) {
         *this = std::move(temp);
     }
 
@@ -949,20 +986,18 @@ public:
         data_ = nullptr;
     }
 
-    Vector<bool>& operator=(const Vector<bool>& other) {
-        this->Clear();
-        this->ShrinkToFit();
-
+    Vector& operator=(const Vector& other) {
+        this->~Vector();
         size_ = other.Size();
         capacity_ = other.Capacity();
         data_ = new uint32_t[BitsToBytes(other.Capacity())]();
 
-        Copy(data_, 0, other.Size(), other.Data());
+        this->Copy(data_, 0, other.Size(), other.Data());
 
         return *this;
     }
 
-    Vector<bool>& operator=(Vector<bool>&& temp) {
+    Vector& operator=(Vector&& temp) {
         std::swap(temp.size_, size_);
         std::swap(temp.capacity_, capacity_);
         std::swap(temp.data_, data_);
@@ -970,7 +1005,7 @@ public:
         return *this;
     }
 
-    bool operator==(const Vector<bool>&) const = delete;
+    bool operator==(const Vector&) const = delete;
 
     /* Capacity */
 
@@ -1001,7 +1036,7 @@ public:
     /* Element access */
 
     const BitReference At(size_t pos) const {
-        BitReference ret = const_cast<Vector<bool>*>(this)->At(pos);
+        BitReference ret = const_cast<Vector*>(this)->At(pos);
         return static_cast<const BitReference>(ret);
     }
 
@@ -1011,7 +1046,7 @@ public:
     }
 
     const BitReference operator[](size_t pos) const {
-        BitReference ret = const_cast<Vector<bool>*>(this)->operator[](pos);
+        BitReference ret = const_cast<Vector*>(this)->operator[](pos);
         return static_cast<const BitReference>(ret);
     }
 
@@ -1020,7 +1055,7 @@ public:
     }
 
     const BitReference Front() const {
-        BitReference ret = const_cast<Vector<bool>*>(this)->Front();
+        BitReference ret = const_cast<Vector*>(this)->Front();
         return static_cast<const BitReference>(ret);
     }
 
@@ -1029,7 +1064,7 @@ public:
     }
 
     const BitReference Back() const {
-        BitReference ret = const_cast<Vector<bool>*>(this)->Back();
+        BitReference ret = const_cast<Vector*>(this)->Back();
         return static_cast<const BitReference>(ret);
     }
 
@@ -1038,7 +1073,7 @@ public:
     }
 
     const uint32_t* Data() const {
-        uint32_t* ret = const_cast<Vector<bool>*>(this)->Data();
+        uint32_t* ret = const_cast<Vector*>(this)->Data();
         return const_cast<const uint32_t*>(ret);
     }
 
@@ -1060,7 +1095,6 @@ public:
 
         pos = Begin() + offset;
         size_++;
-
         for (Iterator it = End() - 1; it > pos; it--) {
             *it = stdlike::move(*(it - 1));
         }
@@ -1095,13 +1129,13 @@ public:
     void Resize(size_t new_size, bool value = false) {
         if (size_ < new_size) {
             this->Reserve(RoundUpToThirtyTwoMultiple(new_size));
-            Initialize(data_, size_, new_size, value);
+            this->Initialize(data_, size_, new_size, value);
             size_ = new_size;
         }
     }
 
     void Swap(Vector& other) {
-        Vector<bool> temp = stdlike::move(other);
+        Vector temp = stdlike::move(other);
         other = stdlike::move(*this);
         *this = stdlike::move(temp);
     }
@@ -1112,7 +1146,7 @@ private:
     void ChangeCapacity(size_t new_capacity) {
         new_capacity = RoundUpToThirtyTwoMultiple(new_capacity);
         uint32_t* new_data = new uint32_t[BitsToBytes(new_capacity)];
-        size_t new_size = Copy(new_data, 0, std::min(size_, new_capacity), data_);
+        size_t new_size = this->Copy(new_data, 0, std::min(size_, new_capacity), data_);
         this->~Vector();
 
         size_ = new_size;
@@ -1120,7 +1154,7 @@ private:
         data_ = new_data;
     }
 
-    static inline size_t Initialize(uint32_t* data, size_t start, size_t end, bool value) {
+    inline size_t Initialize(uint32_t* data, size_t start, size_t end, bool value) {
         assert(data);
         for (size_t cur_pos = start; cur_pos < end; cur_pos++) {
             SetValue(data, cur_pos, value);
@@ -1129,7 +1163,7 @@ private:
         return end - start;
     }
 
-    static inline size_t Copy(uint32_t* dest, size_t start, size_t end, const uint32_t* src) {
+    inline size_t Copy(uint32_t* dest, size_t start, size_t end, const uint32_t* src) {
         assert(dest && src);
         for (size_t cur_pos = start; cur_pos < end; cur_pos++) {
             SetValue(dest, cur_pos, GetValue(src, cur_pos));

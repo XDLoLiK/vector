@@ -27,7 +27,7 @@ CXX_FLAGS += -D _DEBUG -ggdb3 -std=c++20 -O0 -pthread -Wall -Wextra -Weffc++ -Wa
 all: prepare $(APPLICATION)
 
 $(APPLICATION): $(OBJ)
-	@$(CXX) $(LD_FLAGS) $^ -o $@ $(CXX_FLAGS) $(SDL_FLAGS)
+	@$(CXX) $(LD_FLAGS) $^ -o $@ $(CXX_FLAGS)
 
 $(BIN_DIR)/%.o: %.cpp
 	@$(CXX) $< -c -MD -o $@ $(CXX_FLAGS)
